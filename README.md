@@ -16,13 +16,13 @@ NetCowImplant is a stealthy, transparent implant designed to integrate into an e
     Tailscale account
     Ligolo-ng
 
-## 🌐 Tailscale Setup (Control Channel)
+## 🌐 Tailscale Setup (Control Channel VPN)
 
 ```bash
 https://tailscale.com/
 ```
 
-## 🚀 Quick Install (1-line auto-setup)
+## 🚀 Quick Install (auto-setup)
 ```bash
 curl -sSL https://raw.githubusercontent.com/TheLaughingCow/NetCowImplant/main/install_implant.sh | sudo bash
 ```
