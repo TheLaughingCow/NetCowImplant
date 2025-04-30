@@ -4,7 +4,7 @@ NetCowImplant is a stealthy, transparent implant designed to integrate into an e
 
 ## It provides
     Ethernet bridging (eth0 <--> eth1)
-    Out-of-band remote control via Tailscale VPN
+    Out-of-band remote control Tailscale VPN
     Outbound Internet traffic routed via Wi-Fi
     Full persistence at boot
     Auto-installation with one command
