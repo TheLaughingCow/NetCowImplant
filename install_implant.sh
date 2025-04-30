@@ -16,9 +16,10 @@ for pkg in "${REQUIRED_PKGS[@]}"; do
 done
 
 # 2. Enable SSH service
-echo
+
 systemctl enable ssh
 systemctl start ssh
+echo
 echo "[✓] SSH is now active."
 
 # 3. Ensure wlan0 is not declared in /etc/network/interfaces
@@ -136,6 +137,12 @@ echo
 echo "[✓] NetCowImplant - Installation complete!"
 echo
 echo "[!] To finish setup:"
-echo "    1. Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
-echo "    2. Reboot: sudo reboot"
+echo "    - Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
+echo "(Optional)"
+echo "[📶] Help with Wi-Fi connection:"
+echo "    - Run: nmcli device wifi list"
+echo "    - Run: nmcli device wifi connect '<SSID>' password '<PASSWORD>'"
+echo "    - Run: nmcli connection modify '<SSID>' connection.autoconnect yes"
+echo "[!] Reboot: sudo reboot"
+
 echo
