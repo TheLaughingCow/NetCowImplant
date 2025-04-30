@@ -4,7 +4,7 @@ set -e
 echo "[+] Deploying network implant..."
 
 # 1. Install required packages
-REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client)
+REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale)
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "    [-] $pkg missing, installing..."
@@ -31,7 +31,7 @@ set -e
 ip link set eth0 up
 ip link set eth1 up
 
-# Flush existing IPs (if any)
+# Flush existing IPs
 ip addr flush dev eth0
 ip addr flush dev eth1
 
@@ -58,14 +58,14 @@ if ! grep -q "metric 200" /etc/network/interfaces; then
     sed -i '/iface br0 inet dhcp/a\    metric 200' /etc/network/interfaces
 fi
 
-# Launch DHCP only on br0
+# Launch DHCP on br0
 dhclient -1 br0
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
 echo "[+] Script /usr/local/sbin/setup_bridge.sh created."
 
-# 4. Create systemd service
+# 4. Create systemd service for bridge
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
 [Unit]
 Description=Setup bridge br0 at boot
@@ -83,7 +83,7 @@ EOF
 
 echo "[+] Systemd service setup-bridge.service created."
 
-# 5. Configure NetworkManager to ignore eth0 and eth1
+# 5. Configure NetworkManager to ignore eth0/eth1
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
 echo "[+] Configuring NetworkManager to ignore eth0 and eth1..."
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
@@ -98,14 +98,21 @@ fi
 systemctl restart NetworkManager
 echo "[+] NetworkManager restarted."
 
-# 6. Enable bridge service at boot
-systemctl daemon-reload
+# 6. Enable bridge setup service
+systemctl daemon-reexec
 systemctl enable setup-bridge.service
 echo "[+] setup-bridge.service enabled."
 
-# 7. Self-delete this script
+# 7. Enable and start Tailscale service
+echo "[+] Enabling and starting Tailscale service..."
+systemctl enable tailscaled
+systemctl start tailscaled
+echo "[+] Tailscale daemon is active. You can now run 'sudo tailscale up --authkey tskey-auth-xxxxxxxxxxxxxxxx' or use an auth key."
+
+# 8. Self-delete this script
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[+] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
 
-echo "[✓] Installation complete. Reboot the machine : sudo reboot."
+echo "[✓] Installation complete."
+echo "[!] ToDo 'sudo reboot'"
