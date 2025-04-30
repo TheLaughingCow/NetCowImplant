@@ -21,12 +21,11 @@ systemctl enable ssh
 systemctl start ssh
 echo "[✓] SSH is now active."
 
-# 3. Set wlan0 metric to 100 in /etc/network/interfaces
-if grep -q "iface wlan0" /etc/network/interfaces; then
-    sed -i '/iface wlan0 inet dhcp/!b;n;c\    metric 100' /etc/network/interfaces
-else
-    echo -e "\nauto wlan0\niface wlan0 inet dhcp\n    metric 100" >> /etc/network/interfaces
-fi
+# 3. Ensure wlan0 is not declared in /etc/network/interfaces
+echo "[+] Cleaning /etc/network/interfaces to let NetworkManager handle wlan0..."
+sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces
+sed -i '/auto wlan0/d' /etc/network/interfaces
+echo "[✓] wlan0 block removed from interfaces file."
 
 # 4. Create /usr/local/sbin/setup_bridge.sh
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
