@@ -16,15 +16,15 @@ for pkg in "${REQUIRED_PKGS[@]}"; do
 done
 
 # 2. Enable SSH service
-
 systemctl enable ssh
 systemctl start ssh
-echo
 echo "[✓] SSH is now active."
 
 # 3. Ensure wlan0 is not declared in /etc/network/interfaces
+echo "[+] Cleaning /etc/network/interfaces to let NetworkManager handle wlan0..."
 sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces
 sed -i '/auto wlan0/d' /etc/network/interfaces
+echo "[✓] wlan0 block removed from interfaces file."
 
 # 4. Create /usr/local/sbin/setup_bridge.sh
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
@@ -68,7 +68,6 @@ dhclient -1 br0
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
-echo
 echo "[✓] setup_bridge.sh created."
 
 # 5. Create systemd service for setup_bridge
@@ -86,10 +85,10 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-echo
+
 echo "[✓] Systemd service setup-bridge.service created."
 
-# 6. Configure NetworkManager to ignore eth0/eth1
+# 6. Configure NetworkManager to ignore eth0/eth1 only
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
     echo -e "\n[keyfile]" >> "$NM_CONF"
@@ -100,49 +99,38 @@ else
     echo "unmanaged-devices=interface-name:eth0;interface-name:eth1" >> "$NM_CONF"
 fi
 
-systemctl restart NetworkManager
-echo
-echo "[✓] NetworkManager restarted."
-
-# 7. Enable bridge service at boot
+# 7. Enable bridge and Tailscale services
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
-
-# 8. Enable and start Tailscale
 systemctl enable tailscaled
 systemctl start tailscaled
-echo
 echo "[✓] Tailscale ready to use."
 
-# 9. Download and extract Ligolo-ng agent
-echo "[+] Downloading Ligolo-ng agent."
+# 8. Download and extract Ligolo-ng agent
+echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
 curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
 tar -xvzf /opt/ligolo/ligolo-agent.tar.gz -C /opt/ligolo/
 rm -f /opt/ligolo/LICENSE /opt/ligolo/README.md /opt/ligolo/ligolo-agent.tar.gz
 chmod +x /opt/ligolo/agent
-
-# Create global alias for Ligolo agent
 ln -sf /opt/ligolo/agent /usr/local/bin/ligolo
 echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
 
-# 10. Self-delete installer
-INSTALLER_PATH=$(readlink -f "$0")
-echo
-echo "[✓] Deleting installer script: $INSTALLER_PATH"
-rm -f "$INSTALLER_PATH"
-
-# Final messages
+# 9. Final messages before network restart
 echo
 echo "[✓] NetCowImplant - Installation complete!"
 echo
 echo "[!] To finish setup:"
 echo "    - Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
-echo "(Optional)"
-echo "[📶] Help with Wi-Fi connection:"
-echo "    - Run: nmcli device wifi list"
-echo "    - Run: nmcli device wifi connect '<SSID>' password '<PASSWORD>'"
-echo "    - Run: nmcli connection modify '<SSID>' connection.autoconnect yes"
-echo "[!] Reboot: sudo reboot"
-
+echo "    - Reboot: sudo reboot"
 echo
+echo "[📶] Help with Wi-Fi connection (if needed):"
+echo "    - nmcli device wifi list"
+echo "    - nmcli device wifi connect '<SSID>' password '<PASSWORD>'"
+echo "    - nmcli connection modify '<SSID>' connection.autoconnect yes"
+echo
+
+# 10. Self-delete installer
+INSTALLER_PATH=$(readlink -f "$0")
+echo "[✓] Deleting installer script: $INSTALLER_PATH"
+rm -f "$INSTALLER_PATH"
