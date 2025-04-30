@@ -21,11 +21,21 @@ NetCowImplant is a stealthy, transparent implant designed to integrate into an e
 ```bash
 https://tailscale.com/
 ```
+<center>
+<img src="https://github.com/TheLaughingCow/NetCowImplant/blob/main/tailscale01.png"/>
+</center>
+
+<center>
+<img src="https://github.com/TheLaughingCow/NetCowImplant/blob/main/tailscale02.png"/>
+</center>
 
 ## 🚀 Quick Install (auto-setup)
 ```bash
 curl -sSL https://raw.githubusercontent.com/TheLaughingCow/NetCowImplant/main/install_implant.sh | sudo bash
 ```
+<center>
+<img src="https://github.com/TheLaughingCow/NetCowImplant/blob/main/NetCowImplant.gif"/>
+</center>
 
 Authenticate to tailscale using your authkey (or normal login):
 ```bash
