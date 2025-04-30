@@ -22,10 +22,8 @@ systemctl start ssh
 echo "[✓] SSH is now active."
 
 # 3. Ensure wlan0 is not declared in /etc/network/interfaces
-echo "[+] Cleaning /etc/network/interfaces to let NetworkManager handle wlan0..."
 sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces
 sed -i '/auto wlan0/d' /etc/network/interfaces
-echo "[✓] wlan0 block removed from interfaces file."
 
 # 4. Create /usr/local/sbin/setup_bridge.sh
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
