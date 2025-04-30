@@ -2,7 +2,7 @@
 
 NetCowImplant is a stealthy, transparent implant designed to integrate into an existing wired network while preserving full network functionality for the bridged-through device
 
-## It provides:
+## It provides
     Ethernet bridging (eth0 <--> eth1)
     Out-of-band remote control via Tailscale VPN
     Outbound Internet traffic routed via Wi-Fi
@@ -46,7 +46,7 @@ Then:
 sudo reboot
 ```
 
-## Tested and validated on:
+## Tested and validated on
     ✅ Raspberry Pi 4b (Kali Linux GUI)
     ❌ Raspberry Pi 4b (Debian)
     ❌ NanoPi R2S
