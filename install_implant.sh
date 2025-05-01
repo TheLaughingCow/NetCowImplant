@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 echo "[+] Deploying NetCowImplant..."
@@ -26,38 +25,50 @@ echo "[✓] SSH is now active."
 if [[ "$DISTRO" == "debian" ]]; then
     sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces || true
     sed -i '/auto wlan0/d' /etc/network/interfaces || true
-    echo "[✓] Cleaned /etc/network/interfaces for Debian."
+    echo "[✓] Cleaned /etc/network/interfaces (Debian)."
 else
-    echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu uses Netplan)."
+    echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu)."
 fi
 
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
 #!/bin/bash
 set -e
 
-ip link set eth0 up
-ip link set eth1 up
+IFACE1="eth0"
+IFACE2=$(ip -o link show | awk -F': ' '{print $2}' | grep -Ev 'lo|wlan0|tailscale0|eth0' | grep -E '^e' | head -n1)
 
-ip addr flush dev eth0
-ip addr flush dev eth1
+if [ -z "$IFACE2" ]; then
+    echo "[!] No secondary interface found. Aborting bridge setup."
+    exit 1
+fi
+
+echo "[+] Found second interface: $IFACE2"
+
+ip link set "$IFACE1" up
+ip link set "$IFACE2" up
+
+ip addr flush dev "$IFACE1"
+ip addr flush dev "$IFACE2"
 
 ip link delete br0 type bridge 2>/dev/null || true
 
 brctl addbr br0
-brctl addif br0 eth0
-brctl addif br0 eth1
+brctl addif br0 "$IFACE1"
+brctl addif br0 "$IFACE2"
 
 ip link set br0 up
-ip link set eth0 promisc on
-ip link set eth1 promisc on
+ip link set "$IFACE1" promisc on
+ip link set "$IFACE2" promisc on
 ip link set br0 promisc on
+
+echo 'interface "br0" { supersede interface-metric 800; }' > /etc/dhcp/dhclient.conf
 
 ip route | grep ^default | grep -v wlan0 | while read -r _ _ _ dev _; do
     ip route del default dev "$dev"
 done
 
-echo "[✓] Bridge br0 configured."
 dhclient -1 br0
+ip route del default dev br0 2>/dev/null || true
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
@@ -80,22 +91,6 @@ EOF
 
 echo "[✓] systemd service setup-bridge.service created."
 
-NM_CONF="/etc/NetworkManager/NetworkManager.conf"
-if [ -f "$NM_CONF" ]; then
-    echo "[+] NetworkManager config found, adjusting unmanaged interfaces..."
-    if ! grep -q "\[keyfile\]" "$NM_CONF"; then
-        echo -e "\n[keyfile]" >> "$NM_CONF"
-    fi
-    if grep -q "unmanaged-devices=" "$NM_CONF"; then
-        sed -i '/unmanaged-devices=/c\unmanaged-devices=interface-name:eth0;interface-name:eth1' "$NM_CONF"
-    else
-        echo "unmanaged-devices=interface-name:eth0;interface-name:eth1" >> "$NM_CONF"
-    fi
-    echo "[✓] NetworkManager config patched."
-else
-    echo "[!] Skipping NetworkManager config (not present)."
-fi
-
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
 
@@ -109,7 +104,6 @@ fi
 systemctl enable tailscaled
 systemctl start tailscaled
 echo "[✓] Tailscale ready to use."
-echo
 
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
@@ -119,7 +113,6 @@ rm -f /opt/ligolo/LICENSE /opt/ligolo/README.md /opt/ligolo/ligolo-agent.tar.gz
 chmod +x /opt/ligolo/agent
 ln -sf /opt/ligolo/agent /usr/local/bin/ligolo
 echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
-echo
 
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[✓] Deleting installer script: $INSTALLER_PATH"
