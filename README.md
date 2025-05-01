@@ -46,6 +46,51 @@ Then:
 sudo reboot
 ```
 
+## 🆘 Help - Ligolo-ng
+
+```bash
+exegol-test /workspace # ./proxy -selfcert
+INFO[0000] Loading configuration file ligolo-ng.yaml    
+WARN[0000] Using default selfcert domain 'ligolo', beware of CTI, SOC and IoC! 
+INFO[0000] Listening on 0.0.0.0:11601                   
+    __    _             __                       
+   / /   (_)___ _____  / /___        ____  ____ _
+  / /   / / __ `/ __ \/ / __ \______/ __ \/ __ `/
+ / /___/ / /_/ / /_/ / / /_/ /_____/ / / / /_/ / 
+/_____/_/\__, /\____/_/\____/     /_/ /_/\__, /  
+        /____/                          /____/   
+                                                                                                                     
+  Made in France ♥            by @Nicocha30!                                                                         
+  Version: 0.8                                                                                                       
+```
+```bash
+ligolo-ng » interface_create --name "ligolo"
+INFO[0014] Creating a new ligolo interface...           
+INFO[0014] Interface created!                                                                                                  
+```
+```bash
+ligolo-ng » certificate_fingerprint
+INFO[0226] TLS Certificate fingerprint for ligolo is: XXXXXXXXXXXXXXXXXXXXXXX                                                                                               
+```
+```bash
+ligolo-ng » interface_add_route --name ligolo --route X.X.X.0/24
+INFO[0444] Route created.                                                                                              
+```
+Connect the Agent:
+```bash
+admin@IMP-CMP3:~$ ligolo -connect X.X.X.X:11601 -v -accept-fingerprint XXXXXXXXXXXXXXXXXXXXXXX
+INFO[0000]/home/runner/work/ligolo-ng/ligolo-ng/cmd/agent/main.go:185 main.connect() Connection established    
+                    addr="X.X.X.X:11601"                                                                                           
+```
+Then start session:
+```bash
+ligolo-ng » session
+? Specify a session :  [Use arrows to move, type to filter]
+> 1 - admin@IMP-CMP3 - X.X.X.X:48794 - d83ada5u1649
+[Agent : admin@IMP-CMP3] » start
+INFO[0144] Starting tunnel to admin@IMP-CMP3 (d83ada5u1649)                                                                                        
+```
+
 ## Tested and validated on
     ✅ Raspberry Pi 4b (Kali Linux GUI)
     ✅ Raspberry Pi 4b (Ubuntu)
