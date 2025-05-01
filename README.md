@@ -48,11 +48,11 @@ sudo reboot
 
 ## Tested and validated on
     ✅ Raspberry Pi 4b (Kali Linux GUI)
-    ❌ Raspberry Pi 4b (Debian)
+    ✅ Raspberry Pi 4b (Ubuntu)
+    ✅ Raspberry Pi 4b (Debian)
     ❌ NanoPi R2S
 
 ## ToDo
-    Support Debian
     Support 4G LTE
     Support NanoPi R2S
     
