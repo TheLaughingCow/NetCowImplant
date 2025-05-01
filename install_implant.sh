@@ -96,6 +96,10 @@ systemctl enable setup-bridge.service
 
 if ! command -v tailscale >/dev/null 2>&1; then
     echo "[+] Installing Tailscale via official script..."
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+        echo "[!] Waiting for apt to be available..."
+        sleep 3
+    done
     curl -fsSL https://tailscale.com/install.sh | sh
 else
     echo "[✓] Tailscale already installed."
