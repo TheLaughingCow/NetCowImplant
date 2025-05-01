@@ -8,9 +8,7 @@ DISTRO=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
 echo "[+] Detected distro: $DISTRO"
 
 REQUIRED_PKGS=(bridge-utils isc-dhcp-client curl tar openssh-server)
-if [[ "$DISTRO" == "debian" ]]; then
-    REQUIRED_PKGS+=(ifupdown)
-fi
+[[ "$DISTRO" == "debian" ]] && REQUIRED_PKGS+=(ifupdown)
 
 for pkg in "${REQUIRED_PKGS[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -28,9 +26,9 @@ echo "[✓] SSH is now active."
 if [[ "$DISTRO" == "debian" ]]; then
     sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces || true
     sed -i '/auto wlan0/d' /etc/network/interfaces || true
-    echo "[✓] Cleaned /etc/network/interfaces (Debian)."
+    echo "[✓] Cleaned /etc/network/interfaces for Debian."
 else
-    echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu)."
+    echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu uses Netplan)."
 fi
 
 cat << 'EOF' > /usr/local/sbin/setup_bridge.sh
@@ -80,16 +78,22 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-echo "[✓] Systemd service setup-bridge.service created."
+echo "[✓] systemd service setup-bridge.service created."
 
 NM_CONF="/etc/NetworkManager/NetworkManager.conf"
-if ! grep -q "\[keyfile\]" "$NM_CONF"; then
-    echo -e "\n[keyfile]" >> "$NM_CONF"
-fi
-if grep -q "unmanaged-devices=" "$NM_CONF"; then
-    sed -i '/unmanaged-devices=/c\unmanaged-devices=interface-name:eth0;interface-name:eth1' "$NM_CONF"
+if [ -f "$NM_CONF" ]; then
+    echo "[+] NetworkManager config found, adjusting unmanaged interfaces..."
+    if ! grep -q "\[keyfile\]" "$NM_CONF"; then
+        echo -e "\n[keyfile]" >> "$NM_CONF"
+    fi
+    if grep -q "unmanaged-devices=" "$NM_CONF"; then
+        sed -i '/unmanaged-devices=/c\unmanaged-devices=interface-name:eth0;interface-name:eth1' "$NM_CONF"
+    else
+        echo "unmanaged-devices=interface-name:eth0;interface-name:eth1" >> "$NM_CONF"
+    fi
+    echo "[✓] NetworkManager config patched."
 else
-    echo "unmanaged-devices=interface-name:eth0;interface-name:eth1" >> "$NM_CONF"
+    echo "[!] Skipping NetworkManager config (not present)."
 fi
 
 systemctl daemon-reexec
@@ -105,6 +109,7 @@ fi
 systemctl enable tailscaled
 systemctl start tailscaled
 echo "[✓] Tailscale ready to use."
+echo
 
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
@@ -114,6 +119,7 @@ rm -f /opt/ligolo/LICENSE /opt/ligolo/README.md /opt/ligolo/ligolo-agent.tar.gz
 chmod +x /opt/ligolo/agent
 ln -sf /opt/ligolo/agent /usr/local/bin/ligolo
 echo "[✓] Ligolo-ng agent ready to use as 'ligolo'"
+echo
 
 INSTALLER_PATH=$(readlink -f "$0")
 echo "[✓] Deleting installer script: $INSTALLER_PATH"
