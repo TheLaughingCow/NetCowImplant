@@ -7,7 +7,7 @@ echo "[+] Deploying NetCowImplant..."
 DISTRO=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
 echo "[+] Detected distro: $DISTRO"
 
-REQUIRED_PKGS=(bridge-utils isc-dhcp-client tailscale curl tar openssh-server)
+REQUIRED_PKGS=(bridge-utils isc-dhcp-client curl tar openssh-server)
 if [[ "$DISTRO" == "debian" ]]; then
     REQUIRED_PKGS+=(ifupdown)
 fi
@@ -28,10 +28,8 @@ echo "[✓] SSH is now active."
 if [[ "$DISTRO" == "debian" ]]; then
     sed -i '/iface wlan0/,/^$/d' /etc/network/interfaces || true
     sed -i '/auto wlan0/d' /etc/network/interfaces || true
-    echo
     echo "[✓] Cleaned /etc/network/interfaces (Debian)."
 else
-    echo
     echo "[✓] Skipped /etc/network/interfaces cleanup (Ubuntu)."
 fi
 
@@ -96,9 +94,17 @@ fi
 
 systemctl daemon-reexec
 systemctl enable setup-bridge.service
+
+if ! command -v tailscale >/dev/null 2>&1; then
+    echo "[+] Installing Tailscale via official script..."
+    curl -fsSL https://tailscale.com/install.sh | sh
+else
+    echo "[✓] Tailscale already installed."
+fi
+
 systemctl enable tailscaled
 systemctl start tailscaled
-echo "[✓] Services enabled and started."
+echo "[✓] Tailscale ready to use."
 
 echo "[+] Downloading Ligolo-ng agent..."
 mkdir -p /opt/ligolo
